@@ -8,12 +8,12 @@
     "node": ">=22.6.0"
   },
   "scripts": {
-    "test": "node --test exercises",
-    "test:1": "node --test exercises/01-xp-ledger",
-    "test:2": "node --test exercises/02-level-progress",
-    "test:3": "node --test exercises/03-recurring-activity-occurrences",
-    "test:4": "node --test exercises/04-batch-xp-awards",
-    "test:5": "node --test exercises/05-subscription-renewal-job",
+    "test": "node --test 'exercises/*/*.test.ts'",
+    "test:1": "node --test 'exercises/01-xp-ledger/*.test.ts'",
+    "test:2": "node --test 'exercises/02-level-progress/*.test.ts'",
+    "test:3": "node --test 'exercises/03-recurring-activity-occurrences/*.test.ts'",
+    "test:4": "node --test 'exercises/04-batch-xp-awards/*.test.ts'",
+    "test:5": "node --test 'exercises/05-subscription-renewal-job/*.test.ts'",
     "typecheck": "tsc --noEmit"
   },
   "devDependencies": {

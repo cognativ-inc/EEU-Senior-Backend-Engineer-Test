@@ -9,6 +9,8 @@
  *   - xpReward is always a non-negative integer.
  *   - completedAt is an ISO calendar date, 'YYYY-MM-DD' (no time component).
  *   - Neither function may mutate the `records` array it's given.
+ *
+ * @format
  */
 
 export interface CompletionRecord {
@@ -19,10 +21,16 @@ export interface CompletionRecord {
 
 /** Sum of xpReward across every record. An empty list totals 0. */
 export function getTotalXp(records: CompletionRecord[]): number {
-  throw new Error('Not implemented');
+  let total = 0;
+  for (const record of records) {
+    total += record.xpReward;
+  }
+  return total;
 }
 
-/** Sum of xpReward across only the records whose completedAt equals isoDate exactly. */
-export function getTotalXpOnDate(records: CompletionRecord[], isoDate: string): number {
-  throw new Error('Not implemented');
+export function getTotalXpOnDate(
+  records: CompletionRecord[],
+  isoDate: string,
+): number {
+  return getTotalXp(records.filter(record => record.completedAt === isoDate));
 }
