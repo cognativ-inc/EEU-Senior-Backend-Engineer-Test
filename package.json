@@ -1,0 +1,23 @@
+{
+  "name": "eeu-senior-backend-engineer-test",
+  "version": "1.0.0",
+  "private": true,
+  "description": "Pure TypeScript exercises for a senior backend engineer take-home exercise. No frameworks, no databases, no external runtime libraries.",
+  "type": "module",
+  "engines": {
+    "node": ">=22.6.0"
+  },
+  "scripts": {
+    "test": "node --test exercises",
+    "test:1": "node --test exercises/01-xp-ledger",
+    "test:2": "node --test exercises/02-level-progress",
+    "test:3": "node --test exercises/03-recurring-activity-occurrences",
+    "test:4": "node --test exercises/04-batch-xp-awards",
+    "test:5": "node --test exercises/05-subscription-renewal-job",
+    "typecheck": "tsc --noEmit"
+  },
+  "devDependencies": {
+    "typescript": "^5.8.0",
+    "@types/node": "^22.10.0"
+  }
+}
