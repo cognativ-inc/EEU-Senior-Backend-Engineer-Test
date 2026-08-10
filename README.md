@@ -84,9 +84,18 @@ Optionally, `npm run typecheck` runs `tsc --noEmit` in strict mode over every ex
 
 ### Description
 
-An EEU activity produces one occurrence per day it is scheduled for, and each occurrence is
-PENDING, COMPLETED, SKIPPED or CANCELLED. The home screen shows a summary of the current day.
-Implement `summarizeDay` and `getXpByActivity`.
+An EEU activity produces one occurrence per day it is scheduled for, and the user resolves each
+one during the day: they complete it, they skip it, or they cancel it outright. Skipping and
+cancelling look similar but mean different things — a skipped occurrence was part of the day and
+the user chose not to do it, while a cancelled one was called off and counts as if it had never
+been scheduled.
+
+The home screen turns that list into a summary of how the day is going, plus a breakdown of where
+today's XP came from. Implement `summarizeDay` and `getXpByActivity`.
+
+Every number in the summary can be decided from one occurrence at a time; the second function
+differs less in difficulty than in what it keys its answer on. Watch the distinction between an
+activity that is absent from the breakdown and one that is there but worth 0 XP.
 
 ### Requirements
 
@@ -113,9 +122,18 @@ all-resolved edge cases, grouping, and no mutation.
 
 ### Description
 
-Users level up as they earn XP. `LEVEL_THRESHOLDS[i]` is the total XP needed to reach level
-`i + 1`, so everyone starts at level 1 with 0 XP. Implement `getLevelProgress` and
-`getXpForLevel`.
+Users earn XP for what they do in the app, and that XP accumulates into levels defined by a
+single table: `LEVEL_THRESHOLDS[i]` is the total XP needed to reach level `i + 1`. The first entry
+is 0, which is why everyone starts at level 1 with no XP, and the last entry is the top of the
+ladder — there is nothing above it.
+
+The profile screen needs more than the level number: it draws a progress bar, so it also needs how
+far into the current level the user is and how much is still missing for the next one. Implement
+`getLevelProgress` and `getXpForLevel`.
+
+The whole exercise is about reading a position in that table, so what decides whether your answer
+is right are its edges: a user sitting exactly on a threshold, and a user past the last one — who
+is still levelled and still earning XP even though there is no next level to point at.
 
 ### Requirements
 
@@ -142,10 +160,21 @@ and out-of-range levels.
 
 ### Description
 
-The schedule screen renders the occurrences of one day as an ordered agenda and warns the user
-when two of them collide. Occurrences are either all-day or scheduled between two `'HH:MM'`
-times of that same day — there is no timezone and no date to handle. Implement `buildDayAgenda`
-and `findCollisions`.
+The schedule screen shows one day at a time. Some occurrences happen at a fixed time — "Standup,
+09:00 to 09:15" — and some are all-day: things the user wants to get done that day without
+committing to an hour. Both kinds are listed together, all-day ones at the top, and the screen
+also warns the user when two timed occurrences fight for the same minutes.
+
+Implement `buildDayAgenda`, which answers "what does this day look like, in the order it should be
+rendered?", and `findCollisions`, which answers "which of them clash?". Times are 24-hour `'HH:MM'`
+strings, always zero-padded, and everything happens on the same calendar day — no dates, no
+timezones.
+
+Both functions are asked about the same day, filtered and ordered the same way, so most of the
+work of the second one is already done by the first. A zero-padded `'HH:MM'` compares the same way
+chronologically and alphabetically, which is why nothing here asks you to turn one into a number.
+The case that separates a correct collision check from an approximate one is the boundary:
+sharing an instant is not the same as sharing a minute.
 
 ### Requirements
 
@@ -175,10 +204,20 @@ validation, back-to-back and fully-contained intervals, and no mutation.
 ### Description
 
 EEU pushes a reminder shortly before a scheduled event starts. A worker runs periodically and
-decides which occurrences deserve a reminder job right now — and, for the rest, why not, because
-those decisions are logged and support uses them to answer "why didn't I get my reminder?".
-Implement `planReminders`. Instants are ISO UTC strings, always in the same
-`'YYYY-MM-DDTHH:MM:SSZ'` shape, and the fire instant is already computed for you.
+decides which occurrences deserve a reminder job right now.
+
+Most of them don't, for all sorts of ordinary reasons: the activity is not the kind that reminds,
+the user already ticked it off, the moment to send has gone by, push is switched off on that
+account. Every rejection has to come back with the reason for it, because these decisions are
+logged and support reads them back to answer "why didn't I get my reminder?" — "not eligible" is
+not an answer anyone can act on. Implement `planReminders`. Instants are ISO UTC strings, always
+in the same `'YYYY-MM-DDTHH:MM:SSZ'` shape, and the fire instant is already computed for you.
+
+The order of the checks is part of the contract, not an implementation detail: an occurrence that
+fails several of them has one reason on the log, and it is the first. Six of the seven reasons can
+be decided by looking at a candidate on its own; one cannot, because it depends on the other
+candidates of the same activity — including ones you have not looked at yet when you first meet
+it. That rule can therefore change a decision you have already taken.
 
 ### Requirements
 
@@ -209,11 +248,22 @@ missing-settings default, deduplication and its tie-break, result ordering, and 
 ### Description
 
 Every billing period a background job renews each subscription: it charges the saved payment
-method and writes down what happened. The job is not guaranteed to run exactly once per
-subscription and period — it is retried after a crash, a queue can deliver the same message
-twice, an operator can re-run it by hand — and a user must never be charged twice for the same
-period. Implement `renewSubscription`. The gateway and the store are small in-memory objects
-provided by the tests.
+method and writes down what happened.
+
+The job is not guaranteed to run exactly once per subscription and period. It is retried after a
+crash, a queue can deliver the same message twice, an operator can re-run it by hand — so the same
+subscription and period can reach this function several times, possibly after an earlier run died
+halfway through its work. What must never happen is charging a user twice for the same period, and
+the money is the one part of this that cannot be undone from here. Implement `renewSubscription`;
+the gateway and the store are small in-memory objects provided by the tests.
+
+Two separate mechanisms guard against taking a second payment, and they cover different accidents:
+one stops a run that happens after an earlier one finished, the other stops a second charge inside
+a run that is still going. Not every failure is the same kind of failure either — some mean "we
+don't know what happened to the money", some mean "the bank answered, and the answer was no". The
+most useful question to keep asking is what the next run would see: for each way this function can
+end, decide what it leaves written down, and check that a run starting from there does the right
+thing.
 
 ### Requirements
 

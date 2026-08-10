@@ -2,10 +2,14 @@
  * Exercise 5 — Subscription Renewal (hard)
  *
  * EEU subscriptions renew every billing period. A background job walks the subscriptions of the
- * period, charges the saved payment method, and writes down what happened. The job is not
- * guaranteed to run exactly once per subscription and period: it is retried after a crash, a
- * queue can deliver the same message twice, and an operator can re-run it by hand. What must
- * never happen is charging a user twice for the same period. Implement `renewSubscription`.
+ * period, charges the saved payment method, and writes down what happened.
+ *
+ * The job is not guaranteed to run exactly once per subscription and period. It is retried after
+ * a crash, a queue can deliver the same message twice, and an operator can re-run it by hand —
+ * so the same subscription and period can reach this function several times, possibly after an
+ * earlier run died halfway through its work. What must never happen is charging a user twice for
+ * the same period, and the money is the one part of this that cannot be undone from here.
+ * Implement `renewSubscription`.
  *
  * The gateway and the store are small in-memory objects in the tests — there is no real
  * infrastructure here, just their contract:
@@ -33,6 +37,16 @@
  *   - A declined charge is not written down — a later run has to be able to charge again — and
  *     leaves the subscription PAST_DUE.
  *   - The subscription passed in is never mutated.
+ *
+ * Worth thinking about: two separate mechanisms here guard against taking a second payment, and
+ * they cover different accidents — one stops a run that happens after an earlier one finished,
+ * the other stops a second charge inside a run that is still going. Both are needed.
+ *
+ * Note also that not every failure is the same kind of failure. Some mean "we don't know what
+ * happened to the money", some mean "the bank answered, and the answer was no", and the two
+ * deserve opposite treatment. The most useful question to keep asking is what the NEXT run would
+ * see: for each way this function can end, decide what it leaves written down, and check that a
+ * run starting from there does the right thing.
  */
 
 export type SubscriptionStatus = 'TRIALING' | 'ACTIVE' | 'PAST_DUE' | 'CANCELED';

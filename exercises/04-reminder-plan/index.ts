@@ -2,10 +2,14 @@
  * Exercise 4 — Reminder Plan (medium/hard)
  *
  * EEU pushes a reminder to the user's phone shortly before a scheduled event starts. A worker
- * runs periodically, looks at the occurrences it knows about, and decides which ones deserve a
- * reminder job right now. Whatever it rejects has to be rejected with a reason, because those
- * decisions are logged and support uses them to answer "why didn't I get my reminder?".
- * Implement `planReminders`.
+ * runs periodically, looks at the occurrences it knows about, and decides which of them deserve a
+ * reminder job right now.
+ *
+ * Most of them don't, for all sorts of ordinary reasons: the activity is not the kind that
+ * reminds, the user already ticked it off, the moment to send has gone by, push is switched off
+ * on that account. Every rejection has to come back with the reason for it, because these
+ * decisions are logged and support reads them back to answer "why didn't I get my reminder?" —
+ * "not eligible" is not an answer anyone can act on. Implement `planReminders`.
  *
  * `fireAtUtc` is the instant the push should be sent — already computed for you — and so is
  * `nowUtc`. Both are ISO instants in UTC, always in the same `'YYYY-MM-DDTHH:MM:SSZ'` shape.
@@ -32,6 +36,15 @@
  *   - `scheduled` is ordered by fire instant, earliest first, ties broken by occurrence id
  *     (A→Z). `skipped` keeps the order the candidates arrived in.
  *   - The inputs may not be mutated.
+ *
+ * Worth thinking about: the order of the checks is part of the contract, not an implementation
+ * detail — an occurrence that fails several of them has one reason on the log, and it is the
+ * first. Note too that six of the seven reasons can be decided by looking at a candidate on its
+ * own, and one cannot: it depends on the other candidates of the same activity, including ones
+ * you have not looked at yet when you first meet it. That last rule can therefore change a
+ * decision you have already taken, which is worth settling before you start writing. Instants
+ * compare the same way chronologically and alphabetically in the shape they arrive in, so none of
+ * them needs parsing.
  */
 
 export type OccurrenceStatus = 'PENDING' | 'COMPLETED' | 'SKIPPED' | 'CANCELLED';
