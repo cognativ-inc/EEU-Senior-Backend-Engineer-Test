@@ -1,59 +1,59 @@
 # EEU — Senior Backend Engineer Exercises
 
-Five self-contained exercises about EEU, a habit/activity-tracking product: users earn XP for
-completing activities, level up, schedule recurring activities, and renew a subscription each
-billing period. Each exercise is a couple of plain functions you implement against a fixed test
-suite — there is no architecture to design here. The point is to assess **TypeScript and
-problem-solving ability**: reading precise business rules and translating them into correct,
-well-typed code — not to assess how you'd layer a backend service.
+EEU is an activity-tracking product: users schedule activities, complete them day by day, earn XP
+and level up, get a push reminder before an event starts, and pay for a subscription that renews
+every billing period. These five exercises are taken from that domain.
 
-Everything is **pure TypeScript**: no database, no HTTP framework, no external runtime libraries.
-The two hardest exercises take small in-memory mock objects as plain function parameters (a
-payment gateway, a store) — never a real dependency-injection setup.
+Each one is a couple of plain functions you implement against a fixed test suite. There is no
+architecture to design, no framework to wire, no database and no external library — the whole
+test is **TypeScript, plain logic and plain data structures**. Nothing here needs date
+arithmetic, rounding, or any numeric trickery; the two hardest exercises take small in-memory
+objects (a payment gateway, a store) as ordinary function parameters.
+
+What we are looking at is how you read a set of business rules and turn them into correct,
+well-typed, readable code — including the edge cases the rules imply but do not spell out.
 
 The exercises are ordered by difficulty, easiest first:
 
 | # | Exercise | Focus |
 |---|----------|-------|
-| 1 | [Daily XP Total](#1-daily-xp-total-easy) | Arrays, filtering, warm-up |
-| 2 | [Level & Progress](#2-level--progress-easymedium) | Precise business-rule translation |
-| 3 | [Recurring Activity Occurrences](#3-recurring-activity-occurrences-medium) | Date/calendar algorithms, edge cases |
-| 4 | [Batch XP Awards](#4-batch-xp-awards-mediumhard) | Aggregation, ordering, immutability |
-| 5 | [Idempotent Subscription Renewal](#5-idempotent-subscription-renewal-hard) | Async control flow, retries, idempotency |
+| 1 | [Day Summary](#1-day-summary-warm-up) | Arrays and grouping, warm-up |
+| 2 | [Level & Progress](#2-level--progress-easy) | Thresholds, boundaries, validation |
+| 3 | [Day Agenda](#3-day-agenda-medium) | Ordering and interval comparison |
+| 4 | [Reminder Plan](#4-reminder-plan-mediumhard) | Rule precedence, deduplication, ordering |
+| 5 | [Subscription Renewal](#5-subscription-renewal-hard) | Async control flow, retries, idempotency |
 
 ## Setup
 
-You need [Node.js](https://nodejs.org) **22.6 or newer** (Node runs TypeScript directly — no
-compiler, no `ts-node`, no build step). From the repository root:
+You need [Node.js](https://nodejs.org) **22.6 or newer** — Node runs TypeScript directly, so
+there is no compiler and no build step. From the repository root:
 
 ```bash
 npm install
 ```
 
-That installs exactly two `devDependencies` — `typescript` and `@types/node` — used only for
-editor/IDE type-checking (`npm run typecheck`). Nothing in the exercises depends on them; running
-the tests never invokes the TypeScript compiler.
+That installs exactly two `devDependencies`, `typescript` and `@types/node`, used only for
+editor type-checking. Nothing in the exercises depends on them and running the tests never
+invokes the TypeScript compiler.
 
 ## How to work
 
-Each exercise lives in `exercises/NN-name/` and has three files:
+Each exercise lives in `exercises/NN-name/` and has two files:
 
 - **`index.ts`** — the file you edit. It declares every type and function signature you need,
-  each ending in `throw new Error('Not implemented')`. Read the comment above each function —
-  it's the spec.
-- **`index.test.ts`** — the tests. Don't edit this; it's the executable version of the
-  requirements below. Run it to check your progress.
-- **`index.solution.ts`** — a reference solution. It's `.gitignore`d (see below) so it never ends
-  up in a fork or a candidate's clone.
+  each one ending in `throw new Error('Not implemented')`. The comment at the top is the spec:
+  read it carefully, it is where the business rules live.
+- **`index.test.ts`** — the tests. Don't edit them; they are the executable version of the
+  requirements below. Run them to check your progress.
 
-Run one exercise's tests while you work on it:
+Run one exercise while you work on it:
 
 ```bash
-npm run test:1   # exercises/01-xp-ledger
+npm run test:1   # exercises/01-day-summary
 npm run test:2   # exercises/02-level-progress
-npm run test:3   # exercises/03-recurring-activity-occurrences
-npm run test:4   # exercises/04-batch-xp-awards
-npm run test:5   # exercises/05-subscription-renewal-job
+npm run test:3   # exercises/03-day-agenda
+npm run test:4   # exercises/04-reminder-plan
+npm run test:5   # exercises/05-subscription-renewal
 ```
 
 Or run everything at once:
@@ -62,200 +62,174 @@ Or run everything at once:
 npm test
 ```
 
-Optional: `npm run typecheck` runs `tsc --noEmit` in strict mode across every exercise, if you
-want editor-grade type-checking beyond what Node's runtime type-stripping catches.
+Optionally, `npm run typecheck` runs `tsc --noEmit` in strict mode over every exercise.
 
 ## Ground rules
 
-- Any function that "changes" something must return a **new** value and leave its input
-  untouched — none of these functions should mutate an argument.
-- Don't change any exported type or function signature in `index.ts` — the tests import them by
-  exact name.
-- Where a function needs to reject bad input, throwing a plain `Error` (with a helpful message)
-  is enough — there's no custom error hierarchy to build.
+- Don't change any exported type or function signature — the tests import them by exact name.
+- No function may mutate an argument. Anything that "changes" something returns a new value.
+- Where a function has to reject bad input, throwing a plain `Error` with a helpful message is
+  enough. There is no error hierarchy to build.
+- Keep it self-contained: solve each exercise inside the file it belongs to, with the language
+  and its standard data structures. You are not expected to build a toolbox of helpers.
+- The tests are the contract, but they are not the whole spec — the comments in `index.ts` are.
+  Passing them by special-casing the fixtures is not passing them.
 
 ---
 
-## 1. Daily XP Total (Easy)
+## 1. Day Summary (Warm-up)
 
-**Files:** `exercises/01-xp-ledger/`
+**Files:** `exercises/01-day-summary/`
 
 ### Description
 
-Every time a user completes an activity in EEU, it's recorded as a `CompletionRecord`. Implement
-two small aggregation functions over an array of records.
+An EEU activity produces one occurrence per day it is scheduled for, and each occurrence is
+PENDING, COMPLETED, SKIPPED or CANCELLED. The home screen shows a summary of the current day.
+Implement `summarizeDay` and `getXpByActivity`.
 
 ### Requirements
 
-- `xpReward` is always a non-negative integer; `completedAt` is an ISO calendar date
-  (`'YYYY-MM-DD'`, no time component).
-- `getTotalXp(records)`: sum of `xpReward` across every record. An empty list totals `0`.
-- `getTotalXpOnDate(records, isoDate)`: sum of `xpReward` across only the records whose
-  `completedAt` equals `isoDate` exactly.
-- Neither function may mutate the `records` array.
+- `xpReward` is always a non-negative integer.
+- A CANCELLED occurrence is not part of the day: it is not scheduled, not pending, and never
+  earns XP.
+- Only COMPLETED occurrences earn their `xpReward`.
+- `allResolved` means there is at least one scheduled occurrence and none of them is PENDING.
+- `getXpByActivity` groups XP by activity: several occurrences of the same activity add up, and
+  an activity appears only when it has at least one COMPLETED occurrence — even if that adds up
+  to 0 XP.
+- Neither function mutates its input.
 
 ### Expected outcome
 
-`npm run test:1` passes all 6 tests: empty input, summing, exact-date filtering, and
-no-mutation checks.
+`npm run test:1` passes all 9 tests: empty input, per-status counts, the cancelled and
+all-resolved edge cases, grouping, and no mutation.
 
 ---
 
-## 2. Level & Progress (Easy/Medium)
+## 2. Level & Progress (Easy)
 
 **Files:** `exercises/02-level-progress/`
 
 ### Description
 
-EEU users level up as they earn XP. `LEVEL_THRESHOLDS[i]` is the total XP required to reach level
-`i + 1` (so level 1 starts at 0 XP). Implement `getLevelProgress(totalXp)`.
+Users level up as they earn XP. `LEVEL_THRESHOLDS[i]` is the total XP needed to reach level
+`i + 1`, so everyone starts at level 1 with 0 XP. Implement `getLevelProgress` and
+`getXpForLevel`.
 
 ### Requirements
 
-1. A user's level is the highest level whose threshold is `<= totalXp`.
-2. `xpIntoLevel` is how much XP they have past the threshold for their current level.
-3. `xpToNextLevel` is how much MORE XP they need to reach the next level, or `null` if they are
-   already at the final level (there is no threshold above `LEVEL_THRESHOLDS`' last entry).
-4. Once `totalXp` reaches or exceeds the highest threshold, the level is capped there — it never
-   goes higher no matter how much more XP is earned.
+- `totalXp` must be a non-negative integer; anything else throws an `Error`.
+- The user's level is the highest one whose threshold they have reached — landing exactly on a
+  threshold already counts as that level.
+- `xpIntoLevel` is the XP earned past the threshold of the current level; `xpToNextLevel` is how
+  much more is needed to reach the next one.
+- The last threshold is the maximum level: past it the level stops growing and there is no next
+  level to reach.
+- `getXpForLevel` returns the threshold of a level and throws for a level outside the table.
 
 ### Expected outcome
 
-`npm run test:2` passes all 5 tests, including exact-threshold boundaries and the max-level cap.
+`npm run test:2` passes all 8 tests, including exact-threshold boundaries, the maximum-level cap,
+and input validation.
 
 ---
 
-## 3. Recurring Activity Occurrences (Medium)
+## 3. Day Agenda (Medium)
 
-**Files:** `exercises/03-recurring-activity-occurrences/`
+**Files:** `exercises/03-day-agenda/`
 
 ### Description
 
-EEU lets a user turn an activity into a recurring one ("Meditate every weekday", "Water the
-plants every 2 weeks"). Whenever the schedule screen asks "what's on my calendar between date A
-and date B", the backend expands the recurrence rule into concrete calendar dates. That
-expansion is `generateActivityOccurrences`. Dates are plain `'YYYY-MM-DD'` calendar dates — no
-time-of-day, no timezone handling.
+The schedule screen renders the occurrences of one day as an ordered agenda and warns the user
+when two of them collide. Occurrences are either all-day or scheduled between two `'HH:MM'`
+times of that same day — there is no timezone and no date to handle. Implement `buildDayAgenda`
+and `findCollisions`.
 
 ### Requirements
 
-- `DAILY`: occurrences at `startDate`, `startDate + interval` days, `+ 2*interval` days, …
-- `WEEKLY` without `byWeekday`: same weekday as `startDate`, every `interval` weeks.
-- `WEEKLY` with `byWeekday`: fires on each listed weekday (`0` = Sunday … `6` = Saturday), in weeks
-  spaced `interval` apart. The first matching week only includes weekdays on/after `startDate`;
-  later matching weeks include every listed weekday.
-- `MONTHLY`: same day-of-month as `startDate`, every `interval` months. If a target month is too
-  short for that day (e.g. day 31 in April), clamp to that month's last day — never skip or roll
-  into the next month. Must also handle leap-year February correctly.
-- `count` caps the **total** number of occurrences the rule ever produces, counted from
-  `startDate`, independent of the query range. `until` is an inclusive upper bound on an
-  occurrence's own date, independent of the query range. `count` and `until` are mutually
-  exclusive.
-- `exceptions` removes specific dates from the output; an excepted date still consumes one of the
-  rule's `count` occurrences, it's just omitted from the result.
-- The result is every occurrence inside `[rangeStart, rangeEnd]` (both inclusive), sorted,
-  deduplicated.
-- Throws a plain `Error` for a non-positive/non-integer `interval`, `count` and `until` both
-  present, an invalid `count`, or `byWeekday` used on a non-`WEEKLY` rule / empty / outside `0–6`.
+- Both functions validate every occurrence they are given, including the ones that will not be
+  rendered, and throw an `Error` on an inconsistent one: an all-day occurrence carries no times,
+  a scheduled one carries both and ends strictly after it starts.
+- CANCELLED occurrences are not rendered and never collide. Every other status is rendered.
+- The agenda lists all-day occurrences first, then the scheduled ones chronologically. Ties are
+  broken deterministically: earlier end time, then title (A→Z), then occurrence id (A→Z).
+- Two scheduled occurrences collide when they share at least one minute. Back-to-back
+  occurrences do not collide, and an all-day occurrence never collides.
+- Each colliding pair is reported once as `[first, second]` in agenda order, and the pairs follow
+  the agenda order of their first occurrence, then of their second.
+- Neither function mutates its input.
 
 ### Expected outcome
 
-`npm run test:3` passes all 13 tests: every frequency, month-end clamping across a leap year,
-`count`/`until` bounds, exceptions, range narrowing, and rule validation.
+`npm run test:3` passes all 13 tests: ordering and tie-breaking, cancelled occurrences,
+validation, back-to-back and fully-contained intervals, and no mutation.
 
 ---
 
-## 4. Batch XP Awards (Medium/Hard)
+## 4. Reminder Plan (Medium/Hard)
 
-**Files:** `exercises/04-batch-xp-awards/`
+**Files:** `exercises/04-reminder-plan/`
 
 ### Description
 
-A nightly job collects every XP award earned during the day (one per completed activity) and
-applies them to each user's running total in a single batch. Implement
-`applyXpAwards(users, awards)`.
+EEU pushes a reminder shortly before a scheduled event starts. A worker runs periodically and
+decides which occurrences deserve a reminder job right now — and, for the rest, why not, because
+those decisions are logged and support uses them to answer "why didn't I get my reminder?".
+Implement `planReminders`. Instants are ISO UTC strings, always in the same
+`'YYYY-MM-DDTHH:MM:SSZ'` shape, and the fire instant is already computed for you.
 
 ### Requirements
 
-1. Process awards in the order given. If the same `userId` appears in more than one award, their
-   `xpToAward` amounts accumulate.
-2. A `userId` that doesn't appear in `users` starts from `totalXp` 0.
-3. An award whose `xpToAward` is not a positive integer is **rejected**: it does not affect any
-   total, and is returned in `rejected` instead (in the order it appeared in `awards`).
-4. `users` in the result is a **new** array (the input arrays must not be mutated), containing
-   every user from the input plus any new user introduced by an award, with `totalXp` fully
-   updated. Order: the original `users` order first, then newly-introduced users in the order
-   their first accepted award appears in `awards`.
-5. `leveledUp` contains one entry for every user whose level increased (using the same
-   `LEVEL_THRESHOLDS` table as exercise 2), in the same order as `users` in the result. A user
-   who received no accepted awards, or whose awards didn't cross a threshold, is not included —
-   even if they crossed several thresholds in one batch, they get exactly one entry spanning the
-   full jump.
+- Every candidate ends up in exactly one of the two result lists.
+- The conditions are checked in a fixed order and the first one a candidate fails is the reason
+  it is skipped with: `NOT_AN_EVENT`, `NOT_PENDING`, `ALL_DAY`, `MISSING_FIRE_TIME`,
+  `ALREADY_PAST`, `PUSH_DISABLED`, `DUPLICATE_ACTIVITY`.
+- The fire instant must still be ahead of `nowUtc`; an instant equal to it is too late.
+- A user with no entry in `pushSettings` counts as enabled — we would rather send a reminder than
+  silently drop one for a user we know nothing about.
+- One activity gets at most one reminder per run: among the candidates that survive every other
+  check, the one firing first wins and the rest are `DUPLICATE_ACTIVITY`. A tie goes to the one
+  that arrived first.
+- `scheduled` is ordered by fire instant, then by occurrence id. `skipped` keeps arrival order.
+- The inputs are not mutated.
 
 ### Expected outcome
 
-`npm run test:4` passes all 7 tests: accumulation, new-user creation, rejection without side
-effects, a multi-threshold single-entry level-up, result ordering, and no-mutation of the inputs.
+`npm run test:4` passes all 11 tests: every skip reason, the precedence between them, the
+missing-settings default, deduplication and its tie-break, result ordering, and no mutation.
 
 ---
 
-## 5. Idempotent Subscription Renewal (Hard)
+## 5. Subscription Renewal (Hard)
 
-**Files:** `exercises/05-subscription-renewal-job/`
+**Files:** `exercises/05-subscription-renewal/`
 
 ### Description
 
-Every billing period, a background job renews each active EEU subscription: it charges the
-user's saved payment method for the renewal fee and updates the subscription's status
-accordingly. The job **can run more than once** for the same subscription and period — retries,
-an operator re-running it, a crash halfway through — so it must be safe: a user must be charged
-**at most once** per subscription per period. Implement
-`renewSubscription(subscription, period, gateway, store)`.
-
-The gateway and store are mocked (in-memory) in the tests. Notes on their contract:
-
-- `gateway.charge()` can reject to simulate a transient network failure.
-- A `'DECLINED'` result is a real business outcome, not a crash — handle it distinctly from a
-  rejected promise.
+Every billing period a background job renews each subscription: it charges the saved payment
+method and writes down what happened. The job is not guaranteed to run exactly once per
+subscription and period — it is retried after a crash, a queue can deliver the same message
+twice, an operator can re-run it by hand — and a user must never be charged twice for the same
+period. Implement `renewSubscription`. The gateway and the store are small in-memory objects
+provided by the tests.
 
 ### Requirements
 
-1. If `subscription.status` is `'CANCELED'`, return it unchanged. Never call the gateway or the
-   store.
-2. **Idempotent retry:** if `store.hasRenewalRecord(subscription.id, period)` is already `true`
-   (a previous run already renewed this exact period), return the subscription unchanged. Never
-   call the gateway.
-3. Otherwise, charge the gateway: `gateway.charge(idempotencyKey, subscription.renewalFeeCents)`,
-   where `idempotencyKey` is `` `${subscription.id}:${period}` ``. Use the **same** idempotency
-   key on every attempt for this call.
-4. The gateway call can reject to simulate a transient failure. Retry up to **3 total attempts**.
-   If every attempt rejects, rethrow the last error, and do **not** call `store.recordRenewal` —
-   a future run should retry the whole thing from scratch.
-5. If the (eventual) charge result is `'APPROVED'`: call
-   `store.recordRenewal(subscription.id, period, transactionId)`, then return
-   `{ ...subscription, status: 'ACTIVE' }`.
-6. If the charge result is `'DECLINED'`: do **not** call `store.recordRenewal` (so a future run
-   retries the charge), and return `{ ...subscription, status: 'PAST_DUE' }`.
-7. Never mutate the `subscription` object passed in.
+- A CANCELED subscription is returned untouched, with nothing charged, read or written.
+- A period already written down in the store was renewed by an earlier run: return the
+  subscription untouched, without charging again.
+- The gateway is called with the idempotency key `` `${subscription.id}:${period}` ``, identical
+  on every attempt of that charge.
+- A rejected charge is a transient failure worth retrying, up to `MAX_CHARGE_ATTEMPTS` attempts
+  in total. A `DECLINED` result is a business answer, not a failure, and is never retried.
+- If every attempt rejects, the last error is rethrown and the store is left untouched so a later
+  run can start over.
+- An approved charge is written down with its transaction id and leaves the subscription
+  `ACTIVE`; a declined one is not written down and leaves it `PAST_DUE`.
+- The subscription passed in is never mutated.
 
 ### Expected outcome
 
-`npm run test:5` passes all 8 tests: cancellation short-circuit, the happy path, a declined
-charge, retry-then-succeed, exhausting retries and rethrowing, a same-period double-run being a
-no-op, a different period charging again, and no-mutation of the input.
-
----
-
-## For interviewers: reference solutions
-
-Every exercise's `index.solution.ts` is a complete reference implementation, matched line-for-line
-against `index.test.ts`. They're excluded via `.gitignore` (`*.solution.ts`) so they never end up
-in a candidate's clone or fork. To check a solution against its tests without editing the
-gitignore, run something like:
-
-```bash
-cd exercises/01-xp-ledger
-sed 's/\.\/index\.ts/.\/index.solution.ts/' index.test.ts > /tmp/verify.test.ts
-node --test /tmp/verify.test.ts
-rm /tmp/verify.test.ts
-```
+`npm run test:5` passes all 10 tests: the cancellation short-circuit, the happy path, a decline,
+retry-then-succeed, exhausted retries, a same-period re-run being a no-op, the next period
+charging again, and no mutation.

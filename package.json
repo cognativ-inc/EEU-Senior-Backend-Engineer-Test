@@ -9,11 +9,11 @@
   },
   "scripts": {
     "test": "node --test 'exercises/*/*.test.ts'",
-    "test:1": "node --test 'exercises/01-xp-ledger/*.test.ts'",
+    "test:1": "node --test 'exercises/01-day-summary/*.test.ts'",
     "test:2": "node --test 'exercises/02-level-progress/*.test.ts'",
-    "test:3": "node --test 'exercises/03-recurring-activity-occurrences/*.test.ts'",
-    "test:4": "node --test 'exercises/04-batch-xp-awards/*.test.ts'",
-    "test:5": "node --test 'exercises/05-subscription-renewal-job/*.test.ts'",
+    "test:3": "node --test 'exercises/03-day-agenda/*.test.ts'",
+    "test:4": "node --test 'exercises/04-reminder-plan/*.test.ts'",
+    "test:5": "node --test 'exercises/05-subscription-renewal/*.test.ts'",
     "typecheck": "tsc --noEmit"
   },
   "devDependencies": {

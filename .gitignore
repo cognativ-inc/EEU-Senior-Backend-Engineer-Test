@@ -1,12 +1,15 @@
-# Reference solutions — not part of the candidate-facing repo
-*.solution.ts
-
 # Dependencies
 node_modules/
 
 # Build output
 dist/
 *.tsbuildinfo
+
+# Local files
+*.solution.ts
+*.local.ts
+.env
+.env.*
 
 # OS / editor
 .DS_Store

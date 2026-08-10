@@ -1,27 +1,82 @@
-import { test } from 'node:test';
+import { test, describe } from 'node:test';
 import assert from 'node:assert/strict';
-import { getLevelProgress } from './index.ts';
+import { getLevelProgress, getXpForLevel, LEVEL_THRESHOLDS } from './index.ts';
 
-test('starts at level 1 with zero XP', () => {
-  assert.deepEqual(getLevelProgress(0), { level: 1, xpIntoLevel: 0, xpToNextLevel: 100 });
+describe('getLevelProgress', () => {
+  test('a brand new user is on level 1', () => {
+    assert.deepEqual(getLevelProgress(0), {
+      level: 1,
+      xpIntoLevel: 0,
+      xpToNextLevel: 100,
+      isMaxLevel: false,
+    });
+  });
+
+  test('reports progress inside the current level', () => {
+    assert.deepEqual(getLevelProgress(60), {
+      level: 1,
+      xpIntoLevel: 60,
+      xpToNextLevel: 40,
+      isMaxLevel: false,
+    });
+    assert.deepEqual(getLevelProgress(400), {
+      level: 3,
+      xpIntoLevel: 150,
+      xpToNextLevel: 100,
+      isMaxLevel: false,
+    });
+  });
+
+  test('landing exactly on a threshold is already the new level', () => {
+    assert.deepEqual(getLevelProgress(100), {
+      level: 2,
+      xpIntoLevel: 0,
+      xpToNextLevel: 150,
+      isMaxLevel: false,
+    });
+    assert.deepEqual(getLevelProgress(99), {
+      level: 1,
+      xpIntoLevel: 99,
+      xpToNextLevel: 1,
+      isMaxLevel: false,
+    });
+  });
+
+  test('the last threshold is the maximum level', () => {
+    assert.deepEqual(getLevelProgress(2000), {
+      level: LEVEL_THRESHOLDS.length,
+      xpIntoLevel: 0,
+      xpToNextLevel: null,
+      isMaxLevel: true,
+    });
+  });
+
+  test('xp beyond the maximum level keeps accumulating but does not level up', () => {
+    assert.deepEqual(getLevelProgress(9999), {
+      level: LEVEL_THRESHOLDS.length,
+      xpIntoLevel: 7999,
+      xpToNextLevel: null,
+      isMaxLevel: true,
+    });
+  });
+
+  test('rejects xp that is not a non-negative integer', () => {
+    assert.throws(() => getLevelProgress(-1), Error);
+    assert.throws(() => getLevelProgress(12.5), Error);
+    assert.throws(() => getLevelProgress(Number.NaN), Error);
+  });
 });
 
-test('tracks progress within level 1', () => {
-  assert.deepEqual(getLevelProgress(50), { level: 1, xpIntoLevel: 50, xpToNextLevel: 50 });
-  assert.deepEqual(getLevelProgress(99), { level: 1, xpIntoLevel: 99, xpToNextLevel: 1 });
-});
+describe('getXpForLevel', () => {
+  test('returns the threshold of each level', () => {
+    assert.equal(getXpForLevel(1), 0);
+    assert.equal(getXpForLevel(2), 100);
+    assert.equal(getXpForLevel(LEVEL_THRESHOLDS.length), 2000);
+  });
 
-test('reaches a level exactly at its threshold', () => {
-  assert.deepEqual(getLevelProgress(100), { level: 2, xpIntoLevel: 0, xpToNextLevel: 200 });
-  assert.deepEqual(getLevelProgress(600), { level: 4, xpIntoLevel: 0, xpToNextLevel: 400 });
-});
-
-test('tracks progress mid-level', () => {
-  assert.deepEqual(getLevelProgress(250), { level: 2, xpIntoLevel: 150, xpToNextLevel: 50 });
-  assert.deepEqual(getLevelProgress(999), { level: 4, xpIntoLevel: 399, xpToNextLevel: 1 });
-});
-
-test('caps at the final level with no further xpToNextLevel', () => {
-  assert.deepEqual(getLevelProgress(1500), { level: 6, xpIntoLevel: 0, xpToNextLevel: null });
-  assert.deepEqual(getLevelProgress(5000), { level: 6, xpIntoLevel: 3500, xpToNextLevel: null });
+  test('rejects levels outside the table', () => {
+    assert.throws(() => getXpForLevel(0), Error);
+    assert.throws(() => getXpForLevel(LEVEL_THRESHOLDS.length + 1), Error);
+    assert.throws(() => getXpForLevel(2.5), Error);
+  });
 });
