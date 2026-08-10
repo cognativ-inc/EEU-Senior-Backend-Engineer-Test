@@ -60,11 +60,6 @@ describe('getLevelProgress', () => {
     });
   });
 
-  test('rejects xp that is not a non-negative integer', () => {
-    assert.throws(() => getLevelProgress(-1), Error);
-    assert.throws(() => getLevelProgress(12.5), Error);
-    assert.throws(() => getLevelProgress(Number.NaN), Error);
-  });
 });
 
 describe('getXpForLevel', () => {
@@ -76,7 +71,7 @@ describe('getXpForLevel', () => {
 
   test('rejects levels outside the table', () => {
     assert.throws(() => getXpForLevel(0), Error);
+    assert.throws(() => getXpForLevel(-3), Error);
     assert.throws(() => getXpForLevel(LEVEL_THRESHOLDS.length + 1), Error);
-    assert.throws(() => getXpForLevel(2.5), Error);
   });
 });

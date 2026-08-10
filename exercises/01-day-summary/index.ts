@@ -44,6 +44,6 @@ export function summarizeDay(occurrences: DayOccurrence[]): DaySummary {
 }
 
 /** XP earned today, grouped by activity. Keys are activity ids. */
-export function getXpByActivity(occurrences: DayOccurrence[]): Record<string, number> {
+export function getXpByActivity(occurrences: DayOccurrence[]): Map<string, number> {
   throw new Error('Not implemented');
 }

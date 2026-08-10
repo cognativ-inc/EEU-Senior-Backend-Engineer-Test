@@ -17,7 +17,7 @@ const subscription: Subscription = {
 const approved: ChargeResult = { outcome: 'APPROVED', transactionId: 'tx-1' };
 const declined: ChargeResult = { outcome: 'DECLINED', declineCode: 'insufficient_funds' };
 
-/** Replays `script` one entry per charge; an Error entry rejects. The last entry repeats. */
+/** Replays `script` one entry per charge; an Error entry rejects instead of resolving. */
 function createGateway(script: (ChargeResult | Error)[]) {
   const keys: string[] = [];
   const amounts: number[] = [];
@@ -26,11 +26,12 @@ function createGateway(script: (ChargeResult | Error)[]) {
     keys,
     amounts,
     async charge(idempotencyKey: string, amountCents: number): Promise<ChargeResult> {
-      const step = script[keys.length] ?? script[script.length - 1];
+      const step = script[keys.length];
       keys.push(idempotencyKey);
       amounts.push(amountCents);
+      if (step === undefined) throw new Error('the gateway was called more times than expected');
       if (step instanceof Error) throw step;
-      return step!;
+      return step;
     },
   };
 }

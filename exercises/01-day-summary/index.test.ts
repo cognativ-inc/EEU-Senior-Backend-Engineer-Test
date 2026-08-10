@@ -67,11 +67,11 @@ describe('summarizeDay', () => {
 
 describe('getXpByActivity', () => {
   test('an empty day has no entries', () => {
-    assert.deepEqual(getXpByActivity([]), {});
+    assert.deepEqual(getXpByActivity([]), new Map());
   });
 
   test('adds up the xp of every completed occurrence of the same activity', () => {
-    assert.deepEqual(getXpByActivity(day), { a1: 35 });
+    assert.deepEqual(getXpByActivity(day), new Map([['a1', 35]]));
   });
 
   test('keeps an activity whose completed occurrences add up to 0', () => {
@@ -79,7 +79,7 @@ describe('getXpByActivity', () => {
       { occurrenceId: 'o1', activityId: 'a1', title: 'Stretch', status: 'COMPLETED', xpReward: 0 },
       { occurrenceId: 'o2', activityId: 'a2', title: 'Read', status: 'PENDING', xpReward: 30 },
     ]);
-    assert.deepEqual(result, { a1: 0 });
+    assert.deepEqual(result, new Map([['a1', 0]]));
   });
 });
 

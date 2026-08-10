@@ -68,8 +68,9 @@ Optionally, `npm run typecheck` runs `tsc --noEmit` in strict mode over every ex
 
 - Don't change any exported type or function signature — the tests import them by exact name.
 - No function may mutate an argument. Anything that "changes" something returns a new value.
-- Where a function has to reject bad input, throwing a plain `Error` with a helpful message is
-  enough. There is no error hierarchy to build.
+- Inputs arrive well-formed unless a rule says otherwise: there is no defensive type checking to
+  write. Where a rule does ask you to reject something, throwing a plain `Error` with a helpful
+  message is enough — there is no error hierarchy to build.
 - Keep it self-contained: solve each exercise inside the file it belongs to, with the language
   and its standard data structures. You are not expected to build a toolbox of helpers.
 - The tests are the contract, but they are not the whole spec — the comments in `index.ts` are.
@@ -94,9 +95,9 @@ Implement `summarizeDay` and `getXpByActivity`.
   earns XP.
 - Only COMPLETED occurrences earn their `xpReward`.
 - `allResolved` means there is at least one scheduled occurrence and none of them is PENDING.
-- `getXpByActivity` groups XP by activity: several occurrences of the same activity add up, and
-  an activity appears only when it has at least one COMPLETED occurrence — even if that adds up
-  to 0 XP.
+- `getXpByActivity` groups XP by activity into a `Map`: several occurrences of the same activity
+  add up, and an activity appears only when it has at least one COMPLETED occurrence — even if
+  that adds up to 0 XP.
 - Neither function mutates its input.
 
 ### Expected outcome
@@ -118,19 +119,20 @@ Users level up as they earn XP. `LEVEL_THRESHOLDS[i]` is the total XP needed to 
 
 ### Requirements
 
-- `totalXp` must be a non-negative integer; anything else throws an `Error`.
+- `totalXp` is always a non-negative integer; there is no input validation to write here.
 - The user's level is the highest one whose threshold they have reached — landing exactly on a
   threshold already counts as that level.
 - `xpIntoLevel` is the XP earned past the threshold of the current level; `xpToNextLevel` is how
   much more is needed to reach the next one.
 - The last threshold is the maximum level: past it the level stops growing and there is no next
   level to reach.
-- `getXpForLevel` returns the threshold of a level and throws for a level outside the table.
+- `getXpForLevel` returns the threshold of a level and throws an `Error` for a level below the
+  first one or above the last one.
 
 ### Expected outcome
 
-`npm run test:2` passes all 8 tests, including exact-threshold boundaries, the maximum-level cap,
-and input validation.
+`npm run test:2` passes all 7 tests, including exact-threshold boundaries, the maximum-level cap,
+and out-of-range levels.
 
 ---
 
