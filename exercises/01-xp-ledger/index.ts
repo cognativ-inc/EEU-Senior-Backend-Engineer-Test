@@ -21,16 +21,12 @@ export interface CompletionRecord {
 
 /** Sum of xpReward across every record. An empty list totals 0. */
 export function getTotalXp(records: CompletionRecord[]): number {
-  let total = 0;
-  for (const record of records) {
-    total += record.xpReward;
-  }
-  return total;
+  // todo: Implement this function to return the total XP earned across all records.
 }
 
 export function getTotalXpOnDate(
   records: CompletionRecord[],
   isoDate: string,
 ): number {
-  return getTotalXp(records.filter(record => record.completedAt === isoDate));
+  // Todo: Implement this function to return the total XP earned on the given date.
 }
