@@ -21,12 +21,12 @@ export interface CompletionRecord {
 
 /** Sum of xpReward across every record. An empty list totals 0. */
 export function getTotalXp(records: CompletionRecord[]): number {
-  // todo: Implement this function to return the total XP earned across all records.
+  throw new Error('Not implemented');
 }
 
 export function getTotalXpOnDate(
   records: CompletionRecord[],
   isoDate: string,
 ): number {
-  // Todo: Implement this function to return the total XP earned on the given date.
+  throw new Error('Not implemented');
 }
