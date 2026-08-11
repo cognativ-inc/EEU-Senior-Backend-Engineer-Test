@@ -25,10 +25,9 @@ The exercises are ordered by difficulty, easiest first:
 
 ## Setup
 
-You need [Node.js](https://nodejs.org) **22.6 or newer** — Node runs TypeScript directly, so
-there is no compiler and no build step. Older versions (Node 20 and below) cannot run the test
-suite at all: they don't understand `.ts` files and will fail with an "Unknown file extension
-.ts" error.
+You need [Node.js](https://nodejs.org) **20 or newer**. Tests run through
+[`tsx`](https://github.com/privatenumber/tsx), a devDependency that lets Node's built-in test
+runner execute the `.ts` files directly — there is still no separate compile step for you to run.
 
 Check what you have:
 
@@ -36,20 +35,20 @@ Check what you have:
 node --version
 ```
 
-If that prints something below `v22.6.0`, install or upgrade Node first.
+If that prints something below `v20.0.0`, install or upgrade Node first.
 
 **Recommended: use a version manager.** It lets you install Node without touching your system
 package manager and switch versions per-project.
 
 - [nvm](https://github.com/nvm-sh/nvm):
   ```bash
-  nvm install 22
-  nvm use 22
+  nvm install 20
+  nvm use 20
   ```
 - [fnm](https://github.com/Schniz/fnm):
   ```bash
-  fnm install 22
-  fnm use 22
+  fnm install 20
+  fnm use 20
   ```
 
 Already have `nvm` or `fnm` installed but on an older Node? The same `install`/`use` commands
@@ -60,15 +59,15 @@ upgrade you — no uninstall step needed.
 - macOS: `brew install node` (or `brew upgrade node` if you already have it via Homebrew)
 - Windows/Linux: download the latest LTS installer from [nodejs.org](https://nodejs.org)
 
-Once `node --version` reports `v22.6.0` or newer, install dependencies from the repository root:
+Once `node --version` reports `v20.0.0` or newer, install dependencies from the repository root:
 
 ```bash
 npm install
 ```
 
-That installs exactly two `devDependencies`, `typescript` and `@types/node`, used only for
-editor type-checking. Nothing in the exercises depends on them and running the tests never
-invokes the TypeScript compiler.
+That installs three `devDependencies`: `typescript` and `@types/node`, used only for editor
+type-checking, and `tsx`, used only to let the test runner load `.ts` files. Nothing in the
+exercises depends on them and running the tests never invokes the TypeScript compiler.
 
 ## How to work
 
