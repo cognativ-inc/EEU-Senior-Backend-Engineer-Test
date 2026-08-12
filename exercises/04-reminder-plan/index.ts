@@ -47,8 +47,12 @@
  * them needs parsing.
  */
 
-export type OccurrenceStatus = 'PENDING' | 'COMPLETED' | 'SKIPPED' | 'CANCELLED';
-export type ActivityType = 'SESSION' | 'EVENT';
+export type OccurrenceStatus =
+  | "PENDING"
+  | "COMPLETED"
+  | "SKIPPED"
+  | "CANCELLED";
+export type ActivityType = "SESSION" | "EVENT";
 
 export interface ReminderCandidate {
   readonly occurrenceId: string;
@@ -66,13 +70,13 @@ export interface UserPushSettings {
 }
 
 export type SkipReason =
-  | 'NOT_AN_EVENT'
-  | 'NOT_PENDING'
-  | 'ALL_DAY'
-  | 'MISSING_FIRE_TIME'
-  | 'ALREADY_PAST'
-  | 'PUSH_DISABLED'
-  | 'DUPLICATE_ACTIVITY';
+  | "NOT_AN_EVENT"
+  | "NOT_PENDING"
+  | "ALL_DAY"
+  | "MISSING_FIRE_TIME"
+  | "ALREADY_PAST"
+  | "PUSH_DISABLED"
+  | "DUPLICATE_ACTIVITY";
 
 export interface ScheduledReminder {
   readonly occurrenceId: string;
@@ -90,10 +94,91 @@ export interface ReminderPlan {
   readonly skipped: SkippedReminder[];
 }
 
+type Eligible = {
+  candidate: ReminderCandidate;
+  idx: number;
+  fireAtUtc: string;
+};
+
 export function planReminders(
   candidates: ReminderCandidate[],
   pushSettings: UserPushSettings[],
   nowUtc: string,
 ): ReminderPlan {
-  throw new Error('Not implemented');
+  const skipped = new Array<SkippedReminder | null>(candidates.length).fill(
+    null,
+  );
+
+  const eligibles: Eligible[] = [];
+
+  for (const [idx, candidate] of candidates.entries()) {
+    let reason: SkipReason;
+    if (candidate.type !== "EVENT") {
+      reason = "NOT_AN_EVENT";
+    } else if (candidate.status !== "PENDING") {
+      reason = "NOT_PENDING";
+    } else if (candidate.isAllDay) {
+      reason = "ALL_DAY";
+    } else if (!candidate.fireAtUtc) {
+      reason = "MISSING_FIRE_TIME";
+    } else if (candidate.fireAtUtc <= nowUtc) {
+      reason = "ALREADY_PAST";
+    } else if (
+      pushSettings.find((x) => x.userId === candidate.userId && !x.pushEnabled)
+    ) {
+      reason = "PUSH_DISABLED";
+    } else {
+      eligibles.push({
+        candidate,
+        idx,
+        fireAtUtc: candidate.fireAtUtc,
+      });
+      continue;
+    }
+
+    skipped[idx] = {
+      occurrenceId: candidate.occurrenceId,
+      reason,
+    };
+  }
+
+  const winnersByActivity = new Map<string, Eligible>();
+  for (const e of eligibles) {
+    const winner = winnersByActivity.get(e.candidate.activityId);
+
+    if (winner === undefined) {
+      winnersByActivity.set(e.candidate.activityId, e);
+    } else if (e.fireAtUtc < winner.fireAtUtc) {
+      winnersByActivity.set(e.candidate.activityId, e);
+      skipped[winner.idx] = {
+        occurrenceId: winner.candidate.occurrenceId,
+        reason: "DUPLICATE_ACTIVITY",
+      };
+    } else {
+      skipped[e.idx] = {
+        occurrenceId: e.candidate.occurrenceId,
+        reason: "DUPLICATE_ACTIVITY",
+      };
+    }
+  }
+
+  const scheduled = [...winnersByActivity.values()]
+    .sort((a, b) => {
+      if (a.fireAtUtc < b.fireAtUtc) return -1;
+      if (a.fireAtUtc > b.fireAtUtc) return 1;
+
+      if (a.candidate.occurrenceId < b.candidate.occurrenceId) return -1;
+      if (a.candidate.occurrenceId > b.candidate.occurrenceId) return 1;
+
+      return 0;
+    })
+    .map((x) => {
+      return {
+        occurrenceId: x.candidate.occurrenceId,
+        userId: x.candidate.userId,
+        fireAtUtc: x.fireAtUtc,
+      };
+    });
+
+  return { skipped: skipped.filter((x) => x !== null), scheduled };
 }
