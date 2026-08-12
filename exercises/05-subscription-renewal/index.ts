@@ -49,7 +49,11 @@
  * run starting from there does the right thing.
  */
 
-export type SubscriptionStatus = 'TRIALING' | 'ACTIVE' | 'PAST_DUE' | 'CANCELED';
+export type SubscriptionStatus =
+  | "TRIALING"
+  | "ACTIVE"
+  | "PAST_DUE"
+  | "CANCELED";
 
 export interface Subscription {
   readonly id: string;
@@ -59,8 +63,8 @@ export interface Subscription {
 }
 
 export type ChargeResult =
-  | { readonly outcome: 'APPROVED'; readonly transactionId: string }
-  | { readonly outcome: 'DECLINED'; readonly declineCode: string };
+  | { readonly outcome: "APPROVED"; readonly transactionId: string }
+  | { readonly outcome: "DECLINED"; readonly declineCode: string };
 
 export interface PaymentGateway {
   charge(idempotencyKey: string, amountCents: number): Promise<ChargeResult>;
@@ -68,10 +72,29 @@ export interface PaymentGateway {
 
 export interface RenewalStore {
   hasRenewal(subscriptionId: string, period: string): Promise<boolean>;
-  saveRenewal(subscriptionId: string, period: string, transactionId: string): Promise<void>;
+  saveRenewal(
+    subscriptionId: string,
+    period: string,
+    transactionId: string,
+  ): Promise<void>;
 }
 
 export const MAX_CHARGE_ATTEMPTS = 3;
+
+// small decorator function to handle the retries
+async function chargeWithRetry(
+  gateway: PaymentGateway,
+  idempotencyKey: string,
+  amountCents: number,
+) {
+  for (let i = 1; ; i += 1) {
+    try {
+      return await gateway.charge(idempotencyKey, amountCents);
+    } catch (e) {
+      if (i >= MAX_CHARGE_ATTEMPTS) throw e;
+    }
+  }
+}
 
 /** `period` identifies the billing period, e.g. '2026-06'. */
 export async function renewSubscription(
@@ -80,5 +103,21 @@ export async function renewSubscription(
   gateway: PaymentGateway,
   store: RenewalStore,
 ): Promise<Subscription> {
-  throw new Error('Not implemented');
+  if (subscription.status === "CANCELED") return subscription;
+  if (await store.hasRenewal(subscription.id, period)) return subscription;
+
+  const idempotencyKey = `${subscription.id}:${period}`;
+  const res = await chargeWithRetry(
+    gateway,
+    idempotencyKey,
+    subscription.renewalFeeCents,
+  );
+
+  if (res.outcome === "DECLINED") {
+    return { ...subscription, status: "PAST_DUE" };
+  }
+
+  await store.saveRenewal(subscription.id, period, res.transactionId);
+
+  return { ...subscription, status: "ACTIVE" };
 }
