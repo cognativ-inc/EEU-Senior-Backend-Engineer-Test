@@ -38,7 +38,11 @@
  * sharing a minute.
  */
 
-export type OccurrenceStatus = 'PENDING' | 'COMPLETED' | 'SKIPPED' | 'CANCELLED';
+export type OccurrenceStatus =
+  | "PENDING"
+  | "COMPLETED"
+  | "SKIPPED"
+  | "CANCELLED";
 
 export interface AgendaOccurrence {
   readonly occurrenceId: string;
@@ -49,12 +53,82 @@ export interface AgendaOccurrence {
   readonly endTime: string | null;
 }
 
+type ScheduledOccurrence = AgendaOccurrence & {
+  startTime: string;
+  endTime: string;
+};
+
+function invalidOccurrence(occurrence: AgendaOccurrence) {
+  if (occurrence.isAllDay) {
+    if (occurrence.startTime !== null || occurrence.endTime !== null) {
+      throw new Error("all day occurrence cannot have start or end time");
+    }
+    return;
+  }
+
+  if (occurrence.startTime === null || occurrence.endTime === null) {
+    throw new Error("regular ccurrence must have start or end time");
+  }
+
+  if (occurrence.startTime >= occurrence.endTime) {
+    throw new Error("start must be strictly less than end time");
+  }
+}
+
+function isValidSchedule(a: AgendaOccurrence): a is ScheduledOccurrence {
+  return a.startTime !== null && a.endTime !== null;
+}
+
+function compare(a: string, b: string) {
+  return a === b ? 0 : a < b ? -1 : 1;
+}
+
 /** The occurrences to render, in the order they should appear on screen. */
-export function buildDayAgenda(occurrences: AgendaOccurrence[]): AgendaOccurrence[] {
-  throw new Error('Not implemented');
+export function buildDayAgenda(
+  occurrences: AgendaOccurrence[],
+): AgendaOccurrence[] {
+  for (const occurrence of occurrences) {
+    invalidOccurrence(occurrence);
+  }
+
+  return occurrences
+    .filter((x) => x.status !== "CANCELLED")
+    .sort((a, b) => {
+      if (a.isAllDay || b.isAllDay) {
+        return a.isAllDay ? -1 : 1;
+      }
+
+      if (isValidSchedule(a) && isValidSchedule(b)) {
+        const checkStartTime = compare(a.startTime, a.startTime);
+        if (checkStartTime != 0) return checkStartTime;
+
+        const checkEndTime = compare(a.endTime, a.endTime);
+        if (checkEndTime != 0) return checkEndTime;
+      }
+
+      const checkTitle = compare(a.title, a.title);
+      if (checkTitle != 0) return checkTitle;
+
+      return compare(a.occurrenceId, b.occurrenceId);
+    });
 }
 
 /** Pairs of occurrence ids that collide in time. */
-export function findCollisions(occurrences: AgendaOccurrence[]): [string, string][] {
-  throw new Error('Not implemented');
+export function findCollisions(
+  occurrences: AgendaOccurrence[],
+): [string, string][] {
+  const dayByAgenda = buildDayAgenda(occurrences).filter(isValidSchedule);
+  const res: [string, string][] = [];
+
+  for (const [firstIdx, first] of dayByAgenda.entries()) {
+    for (const second of dayByAgenda.slice(firstIdx + 1)) {
+      const isOverlapping =
+        first.startTime < second.endTime && second.startTime < first.endTime;
+      if (isOverlapping) {
+        res.push([first.occurrenceId, second.occurrenceId]);
+      }
+    }
+  }
+
+  return res;
 }
